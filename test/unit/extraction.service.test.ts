@@ -11,7 +11,10 @@ import type { LLMProvider, LLMRequest, LLMResult } from "../../src/llm/provider.
 import { ExtractionService } from "../../src/services/extraction.service.js";
 
 const logger = createLogger({ level: "error", sink: () => {} });
-const env = loadEnv({ LLM_PROVIDER: "fake", MIN_MEANINGFUL_TRANSCRIPT_CHARS: "15" } as NodeJS.ProcessEnv);
+const env = loadEnv({
+  LLM_PROVIDER: "fake",
+  MIN_MEANINGFUL_TRANSCRIPT_CHARS: "15",
+} as NodeJS.ProcessEnv);
 
 /** A provider that counts calls and returns/throws a scripted result each time. */
 class CountingProvider implements LLMProvider {
