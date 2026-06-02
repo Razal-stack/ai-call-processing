@@ -8,9 +8,11 @@ dist
 build
 *.tsbuildinfo
 
-# Environment variables
+# Environment variables (NEVER commit real keys; .env.example is the template)
 .env
-.env*.local
+.env.*
+!.env.example
+!.env.test
 
 # IDEs and editors
 .vscode/*
@@ -32,13 +34,6 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
-
-# Turbo
-.turbo
-.nx
-
-# Better-T-Stack
-.alchemy
 
 # Testing
 coverage

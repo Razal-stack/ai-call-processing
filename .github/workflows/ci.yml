@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Format + lint (Biome, non-mutating).
+      - name: Check (format + lint)
+        run: pnpm run check
+
+      # Type check the whole project (src + tests).
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      # Compile the production build.
+      - name: Build
+        run: pnpm run build
+
+      # Unit + e2e. The fake LLM provider means no API key is required.
+      - name: Test (unit + e2e)
+        run: pnpm run test
+        env:
+          LLM_PROVIDER: fake
