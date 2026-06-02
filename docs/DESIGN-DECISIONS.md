@@ -187,6 +187,7 @@ reason and the production equivalent.
 
 | Not built | Reason | Production equivalent |
 |---|---|---|
+| **Multi-turn conversation / thread memory** | The unit of work is **one complete call transcript → one decision**. There is no session, no prior-turn context, no follow-up dialogue — each request stands alone. | A conversation store keyed by session id, threading earlier turns into the prompt where a back-and-forth agent needs continuity. |
 | **Database / persistence** | The service is **stateless** — transcript in, decision out. Storing PII would add retention/GDPR obligations with no functional benefit. | Postgres for a regulatory audit trail of decisions, with a retention policy and encryption at rest. |
 | **Redis / cache / queue** | A single synchronous call, no hot key, no fan-out. A cache adds infrastructure with no measurable benefit at this scale. | Redis for prompt-cache coordination or rate-limit counters; a queue (SQS/PubSub) for async/batched extraction. |
 | **Auth / API keys / rate limiting** | Concern of the gateway layer, not this service. | Gateway auth (mTLS/OAuth) + per-client rate limits; the service remains unaware of identity. |
@@ -208,6 +209,9 @@ reason and the production equivalent.
   (length + hash only) and **never persisted**. A production deployment additionally
   requires a DPIA, a lawful basis under UK GDPR / DPA 2018, and patient notice — these
   are governance/infrastructure concerns rather than application code.
+- **One transcript per request.** The input is a single, complete call transcript — not
+  a turn in an ongoing conversation. The service holds no session state and reads no
+  prior context; each `POST /process-call` is decided in isolation.
 - **UK GP-practice context.** Ambiguous all-numeric dates are read **day-first**
   (`DD/MM/YYYY`). The red-flag list and action policy are clinically conservative
   starting points for clinical review.
