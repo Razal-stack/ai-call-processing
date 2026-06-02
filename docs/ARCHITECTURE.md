@@ -125,15 +125,48 @@ ergonomics); `interface` is reserved for behavioural contracts (`LLMProvider`),
 
 ## Domain model (closed sets)
 
-- **intent:** `book_appointment` · `request_prescription` · `medical_advice` · `cancel_or_reschedule` · `general_enquiry` · `unknown`
-- **urgency:** `emergency` · `urgent` · `routine` · `unknown`
-- **action:** `book_appointment` · `direct_to_emergency` · `escalate_to_nurse` · `issue_prescription_request` · `request_more_info` · `escalate_to_staff`
-- **mode:** `gp_consultation` · `nurse_consultation` · `telephone_callback` · `in_person` · `none`
+Four closed enums make up the vocabulary. Every value the LLM may emit, and every
+action the engine may return, comes from one of these sets — there are no free-form
+strings in the decision path.
 
-The full `intent × urgency → action + mode` policy lives in
-[`src/domain/action-matrix.ts`](../src/domain/action-matrix.ts) as a declarative
-table a clinician can read top-to-bottom. `request_more_info` is an **action** (with
-`mode: none`), not a mode.
+| set | values | what it answers |
+|---|---|---|
+| **intent** | `book_appointment` · `request_prescription` · `medical_advice` · `cancel_or_reschedule` · `general_enquiry` · `unknown` | *Why did the patient call?* |
+| **urgency** | `emergency` · `urgent` · `routine` · `unknown` | *How fast must we respond?* |
+| **action** | `book_appointment` · `direct_to_emergency` · `escalate_to_nurse` · `issue_prescription_request` · `request_more_info` · `escalate_to_staff` | *What do we do next?* (the engine's output) |
+| **mode** | `gp_consultation` · `nurse_consultation` · `telephone_callback` · `in_person` · `none` | *Through what channel?* (qualifies the action) |
+
+The first two are **inputs** the LLM extracts; the last two are the **output** the
+engine decides. `request_more_info` is an **action** (paired with `mode: none`), not a
+mode — "we don't yet know enough to act" is an outcome, not a channel.
+
+### The action matrix — `intent × urgency → action + mode`
+
+The policy is one declarative table in
+[`src/domain/action-matrix.ts`](../src/domain/action-matrix.ts), rendered here as-is.
+Typed `Record<Intent, Record<Urgency, RecommendedAction>>`, so the build fails if any
+cell is missing — every `intent × urgency` combination is spelled out, with no
+fall-through default. A clinician can scan it top-to-bottom and amend a cell without
+touching engine logic.
+
+| intent ↓ \ urgency → | `emergency` | `urgent` | `routine` | `unknown` |
+|---|---|---|---|---|
+| **book_appointment** | direct_to_emergency · *none* | escalate_to_nurse · *telephone_callback* | book_appointment · *gp_consultation* | book_appointment · *gp_consultation* |
+| **request_prescription** | direct_to_emergency · *none* | escalate_to_nurse · *telephone_callback* | issue_prescription_request · *none* | issue_prescription_request · *none* |
+| **medical_advice** | direct_to_emergency · *none* | escalate_to_nurse · *telephone_callback* | escalate_to_nurse · *telephone_callback* | escalate_to_nurse · *telephone_callback* |
+| **cancel_or_reschedule** | book_appointment · *gp_consultation* | book_appointment · *gp_consultation* | book_appointment · *gp_consultation* | book_appointment · *gp_consultation* |
+| **general_enquiry** | direct_to_emergency · *none* | escalate_to_staff · *telephone_callback* | escalate_to_staff · *none* | escalate_to_staff · *none* |
+| **unknown** | direct_to_emergency · *none* | escalate_to_staff · *telephone_callback* | request_more_info · *none* | request_more_info · *none* |
+
+*Cells read `action · mode`.* Some rows are uniform on purpose: **`emergency` always
+escalates** (urgency dominates intent), **`cancel_or_reschedule` ignores urgency**
+(cancelling carries none), and **`unknown` intent never guesses** — it asks for info or
+escalates to a human.
+
+Two outcomes come from safety logic that runs *before* the table and short-circuits it:
+a **red-flag override** (symptom matches chest pain / can't breathe / stroke / overdose
+/ … → `direct_to_emergency`, regardless of what the LLM said), and a **sufficiency
+gate** (too little signal or confidence below threshold → `request_more_info`).
 
 ---
 

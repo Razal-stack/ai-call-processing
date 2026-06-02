@@ -9,7 +9,29 @@ POST /process-call  { "transcript": "..." }  →  structured JSON + meta
 ```
 
 **Minimal, production-shaped, provider-agnostic** — one LLM provider active at a
-time, chosen by config.
+time, chosen by config. It runs with **no API key at all** (`LLM_PROVIDER=fake`, a
+deterministic in-process stub), so local dev, the whole test suite, and CI need no
+secrets and no network. Swap in a real provider (Gemini / OpenAI / Anthropic) purely
+by changing env — the code is the same.
+
+---
+
+## Tech stack
+
+Deliberately small — a handful of focused libraries, no framework lock-in below the
+HTTP edge.
+
+| area | choice | why |
+|---|---|---|
+| **Language / runtime** | TypeScript (strict) on Node ≥ 20 (ESM) | type-safe end to end; types are *derived* from the Zod schemas so they can't drift |
+| **HTTP** | [Express 5](https://expressjs.com) | thin, well-understood; isolated to `api/` so the core stays framework-free |
+| **Validation** | [Zod 4](https://zod.dev) | single source of truth at every boundary (env, request, LLM output, response) |
+| **LLM SDK** | [`@google/genai`](https://www.npmjs.com/package/@google/genai) (Gemini, default) | one active provider via a shared `LLMProvider` interface; OpenAI/Anthropic over the same `fetch`-based base, plus a key-free `fake` |
+| **Logging** | [pino](https://getpino.io) | structured JSON, per-request id, no PII (transcript never logged) |
+| **Config** | [dotenv](https://www.npmjs.com/package/dotenv) + Zod | 12-factor env, validated fail-fast at boot |
+| **Tests** | [Vitest](https://vitest.dev) + [supertest](https://www.npmjs.com/package/supertest) | fast unit + e2e against the app; `fake` provider → deterministic, key-free, CI-safe |
+| **Lint / format** | [Biome](https://biomejs.dev) | one fast tool for both; gates CI |
+| **Package manager** | [pnpm](https://pnpm.io) | — |
 
 ---
 
