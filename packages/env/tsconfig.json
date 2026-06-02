@@ -1,0 +1,3 @@
+{
+  "extends": "@ai-call-processing/config/tsconfig.base.json"
+}

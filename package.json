@@ -1,0 +1,28 @@
+{
+  "name": "ai-call-processing",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "check-types": "pnpm -r check-types",
+    "dev:server": "pnpm --filter server dev",
+    "check": "biome check --write ."
+  },
+  "dependencies": {
+    "@ai-call-processing/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@ai-call-processing/config": "workspace:*",
+    "@biomejs/biome": "^2.2.0",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@10.18.2"
+}
